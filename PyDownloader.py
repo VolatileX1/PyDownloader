@@ -5,14 +5,19 @@ from tqdm import tqdm
 def download_file_with_progress(url, destination):
     """Download a file from the given URL and save it to the specified destination with a progress bar."""
     try:
-        response = requests.get(url, stream=True)
+        if os.path.exists(destination):
+            resume_header = {'Range': 'bytes=%d-' % os.path.getsize(destination)}
+        else:
+            resume_header = {}
+
+        response = requests.get(url, headers=resume_header, stream=True)
         response.raise_for_status()
 
-        total_size = int(response.headers.get('content-length', 0))
+        total_size = int(response.headers.get('content-length', 0)) + os.path.getsize(destination)
         block_size = 1024  # 1 KB
-        progress_bar = tqdm(total=total_size, unit='B', unit_scale=True, desc='Downloading', ncols=80)
+        progress_bar = tqdm(total=total_size, initial=os.path.getsize(destination), unit='B', unit_scale=True, desc='Downloading', ncols=80)
 
-        with open(destination, 'wb') as file:
+        with open(destination, 'ab') as file:
             for data in response.iter_content(block_size):
                 progress_bar.update(len(data))
                 file.write(data)
@@ -24,7 +29,7 @@ def download_file_with_progress(url, destination):
         print(f"Error downloading file: {e}")
 
 def main():
-    print("=== PyDownloader with Progress Bar ===")
+    print("=== PyDownloader with Progress Bar and Resumable Download ===")
     url = input("Enter the URL of the file to download: ")
     
     # Extracting the filename from the URL
